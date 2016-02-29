@@ -6,17 +6,17 @@ component Car(int x, int y, int s, process Z){
 	}
 	behaviour{
 		//Privileged
-		PRIVILEGED = moveFast[my.takenSeats >= 4 && from_x == my.location_x && from_y == my.location_y]
-		                     (from_x, from_y, to_x, to_y){location_x := to_x, location_y := to_y}.PRIVILEGED + 
-		             moveSlow[from_x == my.location_x && from_y == my.location_y]
-		                     (from_x, from_y, to_x, to_y){location_x := to_x, location_y := to_y}.PRIVILEGED + 
-		             releasePassenger[my.takenSeats >= 4 ]<>{takenSeats := my.takenSeats - 1}.NORMAL;
+		PRIVILEGED = oFiC_moveFast[my.takenSeats >= 4 && from_x == my.location_x && from_y == my.location_y]
+		                     (from_x, from_y, to_x, to_y){my.location_x := to_x, my.location_y := to_y}.PRIVILEGED + 
+		             oSiC_moveSlow[from_x == my.location_x && from_y == my.location_y]
+		                     (from_x, from_y, to_x, to_y){my.location_x := to_x, my.location_y := to_y}.PRIVILEGED + 
+		             oCiP_releasePassenger*[my.takenSeats >= 4 ]<>{my.takenSeats := my.takenSeats - 1}.NORMAL;
 		//Normal
-		NORMAL = moveSlow[from_x == my.location_x && from_y == my.location_y]
-		                 (from_x, from_y, to_x, to_y){location_x := to_x, location_y := to_y}.NORMAL + 
-		         takePassenger[my.takenSeats < 3]<>{takenSeats := my.takenSeats + 1}.NORMAL + 
-		         takePassenger[my.takenSeats == 3]<>{takenSeats := my.takenSeats + 1}.PRIVILEGED;
-	       	     
+		NORMAL = oSiC_moveSlow[from_x == my.location_x && from_y == my.location_y]
+		                 (from_x, from_y, to_x, to_y){my.location_x := to_x, my.location_y := to_y}.NORMAL + 		                 
+		         oQiC_offerPerson[my.takenSeats < 3 && location_x == my.location_x && location_y == my.location_y](){my.takenSeats := my.takenSeats + 1}.NORMAL + 
+		         oQiC_offerPerson[my.takenSeats == 3 && location_x == my.location_x && location_y == my.location_y](){my.takenSeats := my.takenSeats + 1}.PRIVILEGED; //+
+		        // oCiP_releasePassenger[my.takenSeats >= 1 ]<>{takenSeats := my.takenSeats - 1}.NORMAL;		        	       	     
     }
 
     init{
@@ -32,11 +32,11 @@ component Person(int x, int y, int i, int q, process Z){
 		attrib queue := q;
 	}
 	behaviour{
-		FREE = addPerson[qLocation_x == my.location_x && qLocation_x == my.location_x]
+		FREE = oQiP_addPerson[qLocation_x == my.location_x && qLocation_x == my.location_x]
 		                (qLocation_x, qLocation_y, q_id){queue := q_id}.QUEUED;
-		  // + walk.FREE; //change location randomly ( ?)
-		QUEUED = takePassenger().TRAVELLING;
-		TRAVELLING = releasePassenger().FREE;
+		QUEUED = oQiP_removePerson[my.queue == qid](qid).TRAVELLING;
+		TRAVELLING = continue*<>.TRAVELLING;
+		//TRAVELLING = oCiP_releasePassenger().FREE;
 		
     }
 
@@ -57,15 +57,17 @@ component QueuePoint(int x, int y, int i, int c, int s, process Z){
 	}
 	behaviour{
 		//Empty
-		EMPTY = addPerson<my.location_x, my.location_y, my.id>{size := my.size +1}.FILLED;
+		EMPTY = oQiP_addPerson<my.location_x, my.location_y, my.id>{size := my.size +1}.FILLED;
 		//Filled
-		FILLED = addPerson[size < capacity - 1]<my.location_x, my.location_y, my.id>{size := my.size +1}.FILLED
-				+ addPerson[size == capacity - 1]<my.location_x, my.location_y, my.id>{size := capacity}.FULL
-				+ removePerson[size > 1]<>{size := my.size -1}.FILLED
-				+ removePerson[size == 1]<>{size := 0}.EMPTY;
+		FILLED = oQiP_addPerson[my.size < my.capacity - 1]<my.location_x, my.location_y, my.id>{my.size := my.size +1}.FILLED
+				+ oQiP_addPerson[my.size == my.capacity - 1]<my.location_x, my.location_y, my.id>{my.size := capacity}.FULL 
+				+ oQiC_offerPerson[location_x == my.location_x && location_y == my.location_y]<>{}.USED;
 		//Full
-		FULL = removePerson<>{size := my.size -1}.FILLED + 
-		       removePerson[capacity == 1]<>{size := 0}.EMPTY;
+		FULL = oQiC_offerPerson[location_x == my.location_x && location_y == my.location_y]<>{}.USED;
+		
+		//A Car has approached
+		USED = oQiP_removePerson[my.size > 1]<id>{my.size := my.size -1}.FILLED +
+		       oQiP_removePerson[my.size == 1]<id>{my.size := 0}.EMPTY;
 
     }
 
@@ -77,6 +79,7 @@ component QueuePoint(int x, int y, int i, int c, int s, process Z){
 
 component FastLane(int fx, int fy, int tx, int ty, process Z){
 		store {
+		attrib usage := 0;
 		attrib from_x := fx;
 		attrib from_y := fy;
 		attrib to_x := tx;
@@ -84,7 +87,8 @@ component FastLane(int fx, int fy, int tx, int ty, process Z){
 		
 	   }
 	   	behaviour{
-			S = moveFast<my.from_x, my.from_y, my.to_x, my.to_y>.S;
+			S = oFiC_moveFast<my.from_x, my.from_y, my.to_x, my.to_y>.M;
+		    M = moved*<>{my.usage := my.usage + 1}.S;
 
     }
 
@@ -96,6 +100,7 @@ component FastLane(int fx, int fy, int tx, int ty, process Z){
 
 component SlowLane(int fx, int fy, int tx, int ty, process Z){
 	store {
+		attrib usage := 0;
 		attrib from_x := fx;
 		attrib from_y := fy;
 		attrib to_x := tx;
@@ -103,7 +108,8 @@ component SlowLane(int fx, int fy, int tx, int ty, process Z){
 		
 	   }
 	   	behaviour{
-		S = moveSlow<my.from_x, my.from_y, my.to_x, my.to_y>.S;
+		S = oSiC_moveSlow<my.from_x, my.from_y, my.to_x, my.to_y>.M;
+		M = moved*<>{my.usage := my.usage + 1}.S;
 
     }
 
@@ -112,24 +118,85 @@ component SlowLane(int fx, int fy, int tx, int ty, process Z){
     }
 }
 
-system Simple{
+measure TravellingPerson = #{Person[TRAVELLING]| true };
+measure FreePerson = #{Person[FREE]| true };
+measure QueuedPerson = #{Person[QUEUED]| true };
+
+measure PrivilegedCar = #{Car[PRIVILEGED]| true };
+measure NormalCar = #{Car[NORMAL]| true };
+
+measure CarOnlyDriver = #{Car[*]| my.takenSeats == 1 };
+measure Car1Passenger = #{Car[*]| my.takenSeats == 2 };
+measure Car2Passenger = #{Car[*]| my.takenSeats == 3 };
+measure Car3Passenger = #{Car[*]| my.takenSeats == 4 };
+measure Car4Passenger = #{Car[*]| my.takenSeats == 5 };
+
+measure EmptyQueue = #{QueuePoint[EMPTY]| true };
+measure FilledQueue = #{QueuePoint[FILLED]| true };
+measure FullQueue = #{QueuePoint[FULL]| true };
+measure UsedQueue = #{QueuePoint[USED]| true };
+
+
+
+measure UsedSlowLane = #{SlowLane[M]| true };
+measure FreeSlowLane = #{SlowLane[S]| true };
+measure UsedFastLane = #{FastLane[M]| true };
+
+measure UsageFastLaneMoreThan1 = #{FastLane[*]| my.usage >1 };
+measure UsageSlowLaneMoreThan1 = #{SlowLane[*]| my.usage >1 };
+measure UsageFastLaneMoreThan0 = #{FastLane[*]| my.usage >0 };
+measure UsageSlowLaneMoreThan0 = #{SlowLane[*]| my.usage >0 };
+
+system SmallCity{
 
     collective{
     	
-    	new Car(0, 0, 2, NORMAL);
-    	new Car(0, 0, 4, PRIVILEGED);
+    	new Car(0, 0, 1, NORMAL);
+    	//new Car(0, 0, 1, NORMAL);
+    	//new Car(0, 0, 1, NORMAL);
+    	//new Car(0, 0, 1, NORMAL);
+    	//new Car(0, 0, 1, NORMAL);
+    	//new Car(0, 0, 1, NORMAL);
+    	//new Car(0, 0, 1, NORMAL);
+    	//new Car(0, 0, 1, NORMAL);
     	
     	new Person(1, 1, 1, -1, FREE);
-    	new Person(1, 8, 2, -1, FREE);
-    	new Person(5, 5, 3, 1, QUEUED);
+    	new Person(1, 8, 2, -1, FREE);   	
+    	new Person(1, 3, 3, 1, QUEUED);
+    	new Person(1, 3, 4,  1, QUEUED);
+    	new Person(1, 3, 5,  1, QUEUED);
+    	new Person(1, 3, 6,  1, QUEUED);
+    	new Person(1, 3, 7,  1, QUEUED);
+    	new Person(1, 3, 8,  1, QUEUED);
+    	new Person(1, 3, 9,  1, QUEUED);
+    	new Person(1, 3, 10,  1, QUEUED);
+    	new Person(1, 3, 11,  1, QUEUED);
+    	new Person(1, 3, 12,  1, QUEUED);
+    	new Person(1, 3, 13,  1, QUEUED);
+    	new Person(1, 3, 14,  1, QUEUED);
+    	new Person(1, 3, 15,  1, QUEUED);
+    	new Person(6, 6, 16, -1, FREE);
 
-		new QueuePoint(5, 5, 1, 3, 1, FILLED);
-		new QueuePoint(6, 6, 2, 3, 0, EMPTY);
+		new QueuePoint(1, 3, 1, 20, 13, FILLED);
+		new QueuePoint(4, 5, 2, 10, 0, EMPTY);
 		
-		new FastLane(7, 7, 10, 10, S);
-		new FastLane(2, 2, 15, 15, S);
+		new FastLane(1, 3, 2, 4, S);
+		new FastLane(2, 4, 4, 5, S);
+		new FastLane(4, 5, 5, 4, S);
+		new FastLane(5, 4, 5, 0, S);
+		new FastLane(5, 0, 4, -1, S);
+		new FastLane(4, -1, 1, -1, S);
+		new FastLane(1, -1, 2, 2, S);
+		new FastLane(2, 2, 1, 3, S);
 		
-		new SlowLane(0, 0, 2, 2, S);
+		new SlowLane(0, 0, 1, 1, S);
+		new SlowLane(1, 1, 1, 3, S);
+		new SlowLane(1, 3, 2, 6, S); 
+		new SlowLane(2, 6, 4, 5, S);
+		new SlowLane(4, 5, 4, 4, S);
+		new SlowLane(4, 4, 3, 2, S);
+		new SlowLane(3, 2, 2, 0, S);
+		new SlowLane(2, 0, 0, 0, S);
     }
 
     environment{
@@ -142,8 +209,8 @@ system Simple{
         }
 
         rate{
-        	[true] moveSlow* 		: 1.0;
-			[true] moveFast* 	: 0.03;
+        	[true] oSiC_moveSlow* 		: 1.0;
+			[true] oFiC_moveFast* 	: 0.03;
 			default : 1.0;
         }
 
