@@ -142,6 +142,23 @@ measure UsedSlowLane = #{SlowLane[M]| true };
 measure FreeSlowLane = #{SlowLane[S]| true };
 measure UsedFastLane = #{FastLane[M]| true };
 
+measure CarLocation13 = #{Car[*] | my.location_x == 1 && my.location_y == 3};
+measure CarLocation24 = #{Car[*] | my.location_x == 2 && my.location_y == 4};
+measure CarLocation45 = #{Car[*] | my.location_x == 4 && my.location_y == 5};
+measure CarLocation54 = #{Car[*] | my.location_x == 5 && my.location_y == 4};
+measure CarLocation50 = #{Car[*] | my.location_x == 5 && my.location_y == 0};
+measure CarLocation4_1 = #{Car[*] | my.location_x == 4 && my.location_y == -1};
+measure CarLocation1_1 = #{Car[*] | my.location_x == 1 && my.location_y == -1};
+measure CarLocation22 = #{Car[*] | my.location_x == 2 && my.location_y == 2};
+measure CarLocation00 = #{Car[*] | my.location_x == 0 && my.location_y == 0};
+measure CarLocation11 = #{Car[*] | my.location_x == 1 && my.location_y == 1};
+measure CarLocation13 = #{Car[*] | my.location_x == 1 && my.location_y == 3};
+measure CarLocation26 = #{Car[*] | my.location_x == 2 && my.location_y == 6};
+measure CarLocation45 = #{Car[*] | my.location_x == 4 && my.location_y == 5};
+measure CarLocation44 = #{Car[*] | my.location_x == 4 && my.location_y == 4};
+measure CarLocation32 = #{Car[*] | my.location_x == 3 && my.location_y == 2};
+measure CarLocation20 = #{Car[*] | my.location_x == 2 && my.location_y == 0};
+
 measure UsageFastLaneMoreThan1 = #{FastLane[*]| my.usage >1 };
 measure UsageSlowLaneMoreThan1 = #{SlowLane[*]| my.usage >1 };
 measure UsageFastLaneMoreThan0 = #{FastLane[*]| my.usage >0 };
